@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flappy Bird Ultra HD</title>
+    <!-- Import Stylish Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #4ec0ca, #ffffff);
+            touch-action: manipulation;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 3px 3px 6px black;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        // --- Bird & Game Variables ---
+        let bird, pipes, score, frames, gameOver, gameStarted;
+
+        const birdImg = new Image();
+        birdImg.src = "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/yellowbird-midflap.png";
+
+        const bgImg = new Image();
+        bgImg.src = "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/background-day.png";
+
+        const pipeTopImg = new Image();
+        pipeTopImg.src = "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/pipe-green.png";
+
+        const pipeBottomImg = new Image();
+        pipeBottomImg.src = "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/pipe-green.png";
+
+        function resetGame() {
+            bird = { x: canvas.width / 6, y: canvas.height / 2, width: 50, height: 40, gravity: 0.6, lift: -10, velocity: 0 };
+            pipes = [];
+            score = 0;
+            frames = 0;
+            gameOver = false;
+            document.getElementById("score").innerText = "Score: " + score;
+        }
+
+        function drawBird() {
+            ctx.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+        }
+
+        function drawBackground() {
+            ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        }
+
+        function drawName() {
+            ctx.font = "bold 60px 'Luckiest Guy', cursive";
+            // Gradient Color
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            gradient.addColorStop("0", "#ff512f"); // Orange-Red
+            gradient.addColorStop("0.5", "#dd2476"); // Pinkish
+            gradient.addColorStop("1.0", "#24c6dc"); // Sky Blue
+            ctx.fillStyle = gradient;
+            ctx.textAlign = "center";
+            ctx.fillText("SANTHOSH", canvas.width / 2, 100);
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 3;
+            ctx.strokeText("SANTHOSH", canvas.width / 2, 100);
+        }
+
+        function updateBird() {
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+            if (bird.y + bird.height >= canvas.height || bird.y <= 0) gameOver = true;
+        }
+
+        function drawPipes() {
+            pipes.forEach(pipe => {
+                ctx.drawImage(pipeTopImg, pipe.x, 0, pipe.width, pipe.top);
+                ctx.save();
+                ctx.translate(pipe.x + pipe.width / 2, pipe.bottom + (canvas.height - pipe.bottom) / 2);
+                ctx.rotate(Math.PI);
+                ctx.drawImage(pipeBottomImg, -pipe.width / 2, -((canvas.height - pipe.bottom) / 2), pipe.width, canvas.height - pipe.bottom);
+                ctx.restore();
+            });
+        }
+
+        function updatePipes() {
+            if (frames % 90 === 0) {
+                let gap = canvas.height * 0.25;
+                let top = Math.random() * (canvas.height / 2.5);
+                pipes.push({ x: canvas.width, width: 80, top: top, bottom: top + gap });
+            }
+            pipes.forEach(pipe => {
+                pipe.x -= 3;
+                if (pipe.x + pipe.width < 0) {
+                    pipes.shift();
+                    score++;
+                    document.getElementById("score").innerText = "Score: " + score;
+                }
+                if (bird.x < pipe.x + pipe.width && bird.x + bird.width > pipe.x && (bird.y < pipe.top || bird.y + bird.height > pipe.bottom)) {
+                    gameOver = true;
+                }
+            });
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawName(); // 🔥 Draw "SANTHOSH"
+
+            if (!gameStarted) {
+                ctx.font = "40px Arial";
+                ctx.fillStyle = "white";
+                ctx.fillText("Press Space or Tap to Start", canvas.width / 2, canvas.height / 2);
+                drawBird();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            if (gameOver) {
+                ctx.font = "48px Arial";
+                ctx.fillStyle = "red";
+                ctx.fillText("Game Over", canvas.width / 2, canvas.height / 2);
+                ctx.font = "32px Arial";
+                ctx.fillStyle = "white";
+                ctx.fillText("Press Space or Tap to Restart", canvas.width / 2, canvas.height / 2 + 50);
+                return;
+            }
+
+            drawPipes();
+            drawBird();
+            updateBird();
+            updatePipes();
+            frames++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function flap() {
+            if (!gameStarted) {
+                gameStarted = true;
+                resetGame();
+            } else if (gameOver) {
+                resetGame();
+                gameStarted = true;
+                gameLoop();
+            } else {
+                bird.velocity = bird.lift;
+            }
+        }
+
+        window.addEventListener("keydown", (e) => { if (e.code === "Space") flap(); });
+        window.addEventListener("touchstart", flap);
+
+        gameStarted = false;
+        resetGame();
+        gameLoop();
+    </script>
+</body>
+</html>
